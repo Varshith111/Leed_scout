@@ -8,6 +8,7 @@ import { toNumber } from '../models/entities';
 import { JobService } from './JobService';
 import { WebsiteVerifier } from '../verification';
 import { GoogleSearchVerifier } from '../verification/GoogleSearchVerifier';
+import { EmailFinder } from '../verification/EmailFinder';
 import { normaliseUrl } from '../verification/DomainValidator';
 
 export interface VerifyOptions {
@@ -29,6 +30,7 @@ export interface VerificationSummary {
 export class VerificationService {
   private readonly websiteVerifier: WebsiteVerifier;
   private readonly searchVerifier: GoogleSearchVerifier;
+  private readonly emailFinder: EmailFinder;
   private readonly jobs: JobService;
 
   public constructor(
@@ -38,6 +40,11 @@ export class VerificationService {
   ) {
     this.websiteVerifier = new WebsiteVerifier(verificationConfig, logger.child('WebsiteVerifier'));
     this.searchVerifier = new GoogleSearchVerifier(verificationConfig, logger.child('GoogleSearchVerifier'));
+    this.emailFinder = new EmailFinder(
+      verificationConfig.timeoutMs,
+      verificationConfig.userAgent,
+      logger.child('EmailFinder'),
+    );
     this.jobs = new JobService(database, logger);
   }
 
@@ -156,9 +163,20 @@ export class VerificationService {
       }
     }
 
-    // Stage 3: Dedicated email / Gmail search if still missing
+    // Stage 3: Dedicated email / Gmail discovery (website, Yahoo, Bing)
     if (!email && raw.name !== '') {
-      email = await this.searchVerifier.findEmail(raw.name, raw.city ?? '');
+      email = await this.emailFinder.findEmail(
+        raw.name,
+        raw.city ?? '',
+        confirmedWebsiteUrl ?? raw.website,
+      );
+      if (email) {
+        this.logger.info('Discovered business email', {
+          name: raw.name,
+          email,
+          rawId: raw.id,
+        });
+      }
     }
 
     if (!hasWebsite) {

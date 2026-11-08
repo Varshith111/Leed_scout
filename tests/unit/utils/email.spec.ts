@@ -2,9 +2,15 @@ import { extractBestEmail, extractEmails } from '../../../src/utils/email';
 
 describe('extractEmails', () => {
   it('extracts unique valid emails from text', () => {
-    const text = 'Contact us at hello@example.com or support@business.org for help. Repeat hello@example.com';
+    const text = 'Contact us at hello@mybusiness.com or support@business.org for help. Repeat hello@mybusiness.com';
     const result = extractEmails(text);
-    expect(result).toEqual(['hello@example.com', 'support@business.org']);
+    expect(result).toEqual(['hello@mybusiness.com', 'support@business.org']);
+  });
+
+  it('filters out dummy domains and placeholder emails', () => {
+    const text = 'Ignore user@domain.com, test@example.com, and bot@bbbemail.org, but keep owner@plumbingpro.com';
+    const result = extractEmails(text);
+    expect(result).toEqual(['owner@plumbingpro.com']);
   });
 
   it('filters out image extensions and invalid patterns', () => {
