@@ -36,8 +36,8 @@ export function makeResumeCommand(context: AppContext): Command {
       }
 
       const originalLimit = job.businessesFound + 500; // sensible default if not overridden
-      const limit = opts['limit'] !== undefined
-        ? Math.max(1, parseInt(opts['limit'], 10))
+      const limit = opts.limit !== undefined
+        ? Math.max(1, parseInt(opts.limit, 10))
         : originalLimit;
 
       printSuccess(`Resuming job #${String(jobId)}`);

@@ -209,8 +209,8 @@ export class DatabaseService implements IDatabaseService {
     const formattedSql = formatPostgresSql(sql);
     return this.withRetry(sql, async () => {
       const target = executor ?? this.ensurePool();
-      const result: QueryResult = await target.query(formattedSql, [...parameters]);
-      return result.rows as unknown as T[];
+      const result = await target.query<T>(formattedSql, [...parameters]);
+      return result.rows;
     });
   }
 

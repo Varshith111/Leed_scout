@@ -28,11 +28,15 @@ async function main(): Promise<number> {
       pid: process.pid,
     });
 
-    await context.database.initialize();
-
     const program = new Command('leadscout')
       .version(context.version)
       .description('Finds businesses that do not have an official website.')
+      .hook('preAction', async (_thisCommand, actionCommand) => {
+        // Initialize database only when executing an actual action command
+        if (actionCommand.name() !== 'config') {
+          await context?.database.initialize();
+        }
+      })
       .addCommand(makeScrapeCommand(context))
       .addCommand(makeJobsCommand(context))
       .addCommand(makeConfigCommand(context))

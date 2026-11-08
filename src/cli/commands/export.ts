@@ -24,8 +24,8 @@ export function makeExportCommand(context: AppContext): Command {
         return;
       }
 
-      const jobId = opts['job'] !== undefined ? parseInt(opts['job'], 10) : undefined;
-      const minRating = opts['minRating'] !== undefined ? parseFloat(opts['minRating']) : undefined;
+      const jobId = opts.job !== undefined ? parseInt(opts.job, 10) : undefined;
+      const minRating = opts.minRating !== undefined ? parseFloat(opts.minRating) : undefined;
 
       const service = new ExportService(context.database, context.logger);
 
@@ -35,11 +35,11 @@ export function makeExportCommand(context: AppContext): Command {
           outputDir: context.config.paths.output,
           jobId,
           filter: {
-            city: opts['city'],
-            state: opts['state'],
-            country: opts['country'],
-            category: opts['category'],
-            provider: opts['provider'] as ProviderName | undefined,
+            city: opts.city,
+            state: opts.state,
+            country: opts.country,
+            category: opts.category,
+            provider: opts.provider as ProviderName | undefined,
             minRating,
           },
         });

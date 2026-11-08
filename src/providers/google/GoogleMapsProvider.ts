@@ -138,9 +138,7 @@ export class GoogleMapsProvider extends BaseProvider {
       const url = new URL(href);
       // Keep only the /maps/place/<name>/ segment, lowercased
       const match = /^(\/maps\/place\/[^/]+\/)/.exec(url.pathname);
-      return match !== null && match[1] !== undefined
-        ? match[1].toLowerCase()
-        : url.pathname.toLowerCase();
+      return match?.[1]?.toLowerCase() ?? url.pathname.toLowerCase();
     } catch {
       return href.toLowerCase();
     }

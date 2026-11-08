@@ -1,8 +1,9 @@
 import type { AppConfig } from '../config/config';
 import type { ILogger } from '../logger';
 import { ProviderName } from '../models/enums';
-import { ValidationError } from '../utils/errors';
 import { GoogleMapsProvider } from './google/GoogleMapsProvider';
+import { JustDialProvider } from './justdial/JustDialProvider';
+import { IndiaMartProvider } from './indiamart/IndiaMartProvider';
 import type { IProvider } from './base/IProvider';
 
 export type { IProvider, BusinessData, SearchParams } from './base/IProvider';
@@ -23,10 +24,19 @@ export function createProvider(
       );
 
     case ProviderName.JUSTDIAL:
+      return new JustDialProvider(
+        config.scraper,
+        config.proxy,
+        config.paths,
+        logger.child('JustDialProvider'),
+      );
+
     case ProviderName.INDIAMART:
-      throw new ValidationError(
-        `Provider "${providerName}" is not yet implemented. Available: google`,
-        { provider: providerName },
+      return new IndiaMartProvider(
+        config.scraper,
+        config.proxy,
+        config.paths,
+        logger.child('IndiaMartProvider'),
       );
   }
 }

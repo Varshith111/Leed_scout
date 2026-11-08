@@ -168,12 +168,12 @@ export abstract class BaseProvider implements IProvider {
 
   private pickEngine(): PlaywrightBrowserType {
     switch (this.scraperConfig.browserType) {
+      case BrowserType.CHROMIUM:
+        return chromium;
       case BrowserType.FIREFOX:
         return firefox;
       case BrowserType.WEBKIT:
         return webkit;
-      default:
-        return chromium;
     }
   }
 }

@@ -9,7 +9,7 @@ export function makeVerifyCommand(context: AppContext): Command {
     .description('Verify whether scraped businesses have an official website')
     .option('--job <jobId>', 'Only verify businesses from this job')
     .action(async (opts: Record<string, string>) => {
-      const jobId = opts['job'] !== undefined ? parseInt(opts['job'], 10) : undefined;
+      const jobId = opts.job !== undefined ? parseInt(opts.job, 10) : undefined;
 
       const controller = new AbortController();
       process.once('SIGINT', () => {

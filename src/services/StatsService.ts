@@ -65,12 +65,12 @@ export class StatsService {
 
     return {
       total: rows.reduce((sum, r) => sum + Number(r.count), 0),
-      pending:   byStatus['PENDING']   ?? 0,
-      running:   byStatus['RUNNING']   ?? 0,
-      paused:    byStatus['PAUSED']    ?? 0,
-      completed: byStatus['COMPLETED'] ?? 0,
-      failed:    byStatus['FAILED']    ?? 0,
-      cancelled: byStatus['CANCELLED'] ?? 0,
+      pending:   byStatus.PENDING   ?? 0,
+      running:   byStatus.RUNNING   ?? 0,
+      paused:    byStatus.PAUSED    ?? 0,
+      completed: byStatus.COMPLETED ?? 0,
+      failed:    byStatus.FAILED    ?? 0,
+      cancelled: byStatus.CANCELLED ?? 0,
     };
   }
 

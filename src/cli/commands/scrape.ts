@@ -19,7 +19,7 @@ export function makeScrapeCommand(context: AppContext): Command {
     .option('--country <country>', 'Target country')
     .option('--limit <number>', 'Maximum businesses to collect', '1000')
     .action(async (opts: Record<string, string>) => {
-      const provider = opts['provider'] as string;
+      const provider = opts.provider!;
 
       if (!enumValues(ProviderName).includes(provider as never)) {
         context.logger.error(`Unknown provider "${provider}"`);
@@ -27,15 +27,15 @@ export function makeScrapeCommand(context: AppContext): Command {
         return;
       }
 
-      const limit = Math.max(1, parseInt(opts['limit'] ?? '1000', 10));
+      const limit = Math.max(1, parseInt(opts.limit ?? '1000', 10));
       const jobs = new JobService(context.database, context.logger);
 
       const job = await jobs.create({
         provider: provider as ProviderName,
-        category: opts['category'] as string,
-        city: opts['city'] as string,
-        state: opts['state'],
-        country: opts['country'],
+        category: opts.category!,
+        city: opts.city!,
+        state: opts.state,
+        country: opts.country,
       });
 
       printSuccess(`Job #${String(job.id)} created`);

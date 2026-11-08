@@ -18,10 +18,10 @@ export function makeJobsCommand(context: AppContext): Command {
 
       const rows = await jobs.list(
         {
-          status: opts['status'] as (typeof JobStatus)[keyof typeof JobStatus] | undefined,
-          provider: opts['provider'] as (typeof ProviderName)[keyof typeof ProviderName] | undefined,
+          status: opts.status as (typeof JobStatus)[keyof typeof JobStatus] | undefined,
+          provider: opts.provider as (typeof ProviderName)[keyof typeof ProviderName] | undefined,
         },
-        { limit: Number(opts['limit'] ?? 20) },
+        { limit: Number(opts.limit ?? 20) },
       );
 
       if (rows.length === 0) {

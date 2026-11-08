@@ -162,7 +162,7 @@ export class JobService {
   ): Promise<void> {
     const job = await this.getById(jobId);
 
-    if (!from.includes(job.status as JobStatus)) {
+    if (!from.includes(job.status)) {
       throw new JobError(
         `Cannot transition job ${String(jobId)} from ${job.status} to ${to}`,
         { jobId, from: job.status, to },

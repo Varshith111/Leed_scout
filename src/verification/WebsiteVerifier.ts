@@ -42,7 +42,7 @@ export class WebsiteVerifier {
         return this.fetchWithTimeout(normalised.href, 'GET');
       }
       return result;
-    } catch (error) {
+    } catch (_error) {
       // HEAD failed — try GET before giving up
       try {
         return await this.fetchWithTimeout(normalised.href, 'GET');
