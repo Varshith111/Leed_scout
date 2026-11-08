@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+coverage/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Runtime artifacts
+logs/*
+!logs/.gitkeep
+output/*
+!output/.gitkeep
+screenshots/*
+!screenshots/.gitkeep
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/

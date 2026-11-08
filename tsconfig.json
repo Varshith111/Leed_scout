@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "node18",
+    "moduleResolution": "node16",
+    "rootDir": ".",
+    "outDir": "dist",
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "useUnknownInCatchVariables": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "sourceMap": true,
+    "removeComments": false,
+    "pretty": true,
+    "types": ["node", "jest"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.ts",
+    "prisma/**/*.ts",
+    "prisma.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "coverage"]
+}

@@ -1,0 +1,69 @@
+{
+  "name": "leadscout",
+  "version": "0.1.0",
+  "description": "Production-grade CLI lead generation scraper that discovers businesses without official websites.",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "main": "dist/cli/index.js",
+  "bin": {
+    "leadscout": "dist/cli/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rimraf dist && tsc --project tsconfig.build.json && tsx scripts/copy-assets.ts",
+    "start": "node dist/cli/index.js",
+    "dev": "tsx src/cli/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{ts,js,mjs,json,md,yml,sql}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,mjs,json,md,yml}\"",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:migrate:status": "tsx scripts/migrate.ts --status",
+    "db:seed": "tsx scripts/seed.ts",
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:unit": "jest --runInBand tests/unit",
+    "test:integration": "jest --runInBand tests/integration",
+    "test:coverage": "jest --coverage --runInBand",
+    "clean": "rimraf dist coverage"
+  },
+  "keywords": [
+    "cli",
+    "scraper",
+    "lead-generation",
+    "playwright",
+    "mysql"
+  ],
+  "dependencies": {
+    "@types/exceljs": "^0.5.3",
+    "commander": "^12.1.0",
+    "dotenv": "^17.4.2",
+    "exceljs": "^4.4.0",
+    "fs-extra": "^11.4.0",
+    "mysql2": "^3.23.1",
+    "playwright": "^1.65.0",
+    "winston": "^3.19.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "jest": "^30.4.2",
+    "prettier": "^3.9.6",
+    "rimraf": "^6.1.3",
+    "ts-jest": "^29.4.12",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}
