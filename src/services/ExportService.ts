@@ -103,8 +103,8 @@ export class ExportService {
     filter?: VerifiedBusinessFilter,
   ): Promise<VerifiedBusinessRow[]> {
     const conditions: string[] = [
-      '`verified` = 1',
-      '`hasWebsite` = 0',
+      '`verified` = TRUE',
+      '`hasWebsite` = FALSE',
     ];
     const params: (string | number)[] = [];
 
@@ -114,8 +114,8 @@ export class ExportService {
         `SELECT vb.*
            FROM \`VerifiedBusinesses\` vb
            JOIN \`RawBusinesses\` rb ON rb.\`id\` = vb.\`rawBusinessId\`
-          WHERE vb.\`verified\` = 1
-            AND vb.\`hasWebsite\` = 0
+          WHERE vb.\`verified\` = TRUE
+            AND vb.\`hasWebsite\` = FALSE
             AND rb.\`jobId\` = ?
           ORDER BY vb.\`name\` ASC`,
         [jobId],
