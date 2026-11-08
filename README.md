@@ -8,7 +8,7 @@ LeadScout does exactly five things:
 1. **Searches** businesses from providers (Google Maps, JustDial, IndiaMART).
 2. **Extracts** business information.
 3. **Verifies** whether an official website exists.
-4. **Stores** only verified businesses, de-duplicated, in MySQL.
+4. **Stores** only verified businesses, de-duplicated, in Supabase (PostgreSQL).
 5. **Exports** the businesses that have no website to CSV, Excel or JSON.
 
 It is not AI lead scoring, not a CRM, not email marketing and not outreach automation.
@@ -22,7 +22,7 @@ The application is built in nine phases. **Phases 1 and 2 are complete.**
 | Phase | Scope                                                                   | Status      |
 | ----- | ----------------------------------------------------------------------- | ----------- |
 | 1     | Project setup, TypeScript, ESLint, Prettier, dotenv, Winston, structure | ✅ Complete |
-| 2     | MySQL connection, DatabaseService, SQL migrations, runner, seed         | ✅ Complete |
+| 2     | Supabase connection, DatabaseService, SQL migrations, runner, seed     | ✅ Complete |
 | 3     | CLI commands, job management                                            | ⏳ Next     |
 | 4     | Provider architecture, Google Maps provider                             | ⏳ Planned  |
 | 5     | Scraping engine, infinite scrolling, business extraction                | ⏳ Planned  |
@@ -39,7 +39,7 @@ The application is built in nine phases. **Phases 1 and 2 are complete.**
 | --------- | ------------------ |
 | Node.js   | 22 or newer        |
 | npm       | 10 or newer        |
-| MySQL     | 8 Community Server |
+| Database  | Supabase (PostgreSQL 15+) |
 
 TypeScript is pinned to the 6.x line: the tooling ecosystem (`typescript-eslint`, `ts-jest`) does
 not yet support the TypeScript 7 native compiler API.
@@ -111,7 +111,7 @@ the process with **all** problems reported at once. Empty strings are treated as
 | Variable       | Default       | Description                             |
 | -------------- | ------------- | --------------------------------------- |
 | `NODE_ENV`     | `development` | `development` \| `production` \| `test` |
-| `DATABASE_URL` | _(required)_  | MySQL 8 connection string (`mysql://`)  |
+| `DATABASE_URL` | _(required)_  | Supabase / PostgreSQL connection string (`postgresql://`) |
 
 ### Database pool
 

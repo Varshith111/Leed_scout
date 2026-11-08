@@ -52,10 +52,10 @@ export async function seedDatabase(
   const before = await database.queryOne<SettingsRow>(SELECT_SETTINGS, [SETTINGS_ROW_ID]);
 
   await database.execute(
-    `INSERT INTO \`Settings\`
-        (\`id\`, \`workers\`, \`headless\`, \`retryCount\`, \`timeout\`, \`proxyEnabled\`, \`rateLimit\`, \`browserType\`)
+    `INSERT INTO "Settings"
+        ("id", "workers", "headless", "retryCount", "timeout", "proxyEnabled", "rateLimit", "browserType")
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE \`id\` = \`id\``,
+     ON CONFLICT ("id") DO NOTHING`,
     [
       SETTINGS_ROW_ID,
       DEFAULT_SETTINGS.workers,

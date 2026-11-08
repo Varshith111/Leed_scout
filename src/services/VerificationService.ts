@@ -205,20 +205,22 @@ export class VerificationService {
 
   private async upsertVerifiedBusiness(input: UpsertVerifiedBusinessInput): Promise<VerifiedBusinessRow> {
     // The composite unique key (name, address, phone) handles deduplication.
-    // ON DUPLICATE KEY UPDATE merges a second sighting into the existing row.
+    // ON CONFLICT DO UPDATE merges a second sighting into the existing row.
     const result = await this.database.execute(
-      `INSERT INTO \`VerifiedBusinesses\`
-         (\`rawBusinessId\`, \`name\`, \`address\`, \`phone\`, \`provider\`,
-          \`category\`, \`website\`, \`city\`, \`state\`, \`country\`,
-          \`rating\`, \`reviewCount\`, \`latitude\`, \`longitude\`, \`googleMapsUrl\`,
-          \`verified\`, \`hasWebsite\`)
+      `INSERT INTO "VerifiedBusinesses"
+         ("rawBusinessId", "name", "address", "phone", "provider",
+          "category", "website", "city", "state", "country",
+          "rating", "reviewCount", "latitude", "longitude", "googleMapsUrl",
+          "verified", "hasWebsite")
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE
-         \`website\`       = IF(VALUES(\`website\`) IS NOT NULL, VALUES(\`website\`), \`website\`),
-         \`verified\`      = VALUES(\`verified\`),
-         \`hasWebsite\`    = VALUES(\`hasWebsite\`),
-         \`rating\`        = COALESCE(VALUES(\`rating\`), \`rating\`),
-         \`reviewCount\`   = COALESCE(VALUES(\`reviewCount\`), \`reviewCount\`)`,
+       ON CONFLICT ("name", "address", "phone") DO UPDATE SET
+         "website"       = COALESCE(EXCLUDED."website", "VerifiedBusinesses"."website"),
+         "verified"      = EXCLUDED."verified",
+         "hasWebsite"    = EXCLUDED."hasWebsite",
+         "rating"        = COALESCE(EXCLUDED."rating", "VerifiedBusinesses"."rating"),
+         "reviewCount"   = COALESCE(EXCLUDED."reviewCount", "VerifiedBusinesses"."reviewCount"),
+         "updatedAt"     = CURRENT_TIMESTAMP
+       RETURNING "id"`,
       [
         input.rawBusinessId,
         input.name,
@@ -235,8 +237,8 @@ export class VerificationService {
         input.latitude ?? null,
         input.longitude ?? null,
         input.googleMapsUrl ?? null,
-        input.verified ? 1 : 0,
-        input.hasWebsite ? 1 : 0,
+        Boolean(input.verified),
+        Boolean(input.hasWebsite),
       ],
     );
 

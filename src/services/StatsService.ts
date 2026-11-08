@@ -81,10 +81,10 @@ export class StatsService {
       ),
       this.database.queryOne<{ total: number; withWebsite: number; withoutWebsite: number }>(
         `SELECT
-           COUNT(*) AS \`total\`,
-           SUM(\`hasWebsite\` = 1) AS \`withWebsite\`,
-           SUM(\`hasWebsite\` = 0 AND \`verified\` = 1) AS \`withoutWebsite\`
-         FROM \`VerifiedBusinesses\``,
+           COUNT(*) AS "total",
+           COUNT(*) FILTER (WHERE "hasWebsite" = TRUE) AS "withWebsite",
+           COUNT(*) FILTER (WHERE "hasWebsite" = FALSE AND "verified" = TRUE) AS "withoutWebsite"
+         FROM "VerifiedBusinesses"`,
       ),
     ]);
 
@@ -103,7 +103,7 @@ export class StatsService {
     return this.database.query<TopCity>(
       `SELECT \`city\`, COUNT(*) AS \`count\`
          FROM \`VerifiedBusinesses\`
-        WHERE \`verified\` = 1 AND \`hasWebsite\` = 0 AND \`city\` IS NOT NULL
+        WHERE "verified" = TRUE AND "hasWebsite" = FALSE AND "city" IS NOT NULL
         GROUP BY \`city\`
         ORDER BY \`count\` DESC
         LIMIT 10`,

@@ -8,7 +8,7 @@ import { ConfigurationError } from '../../../src/utils/errors';
 
 describe('parseMysqlUrl', () => {
   it('parses host, port, credentials and database', () => {
-    expect(parseMysqlUrl('mysql://root:secret@db.internal:3307/leadscout')).toEqual({
+    expect(parseMysqlUrl('mysql://root:secret@db.internal:3307/leadscout')).toMatchObject({
       host: 'db.internal',
       port: 3307,
       user: 'root',
@@ -36,8 +36,18 @@ describe('parseMysqlUrl', () => {
     });
   });
 
-  it('rejects a non-MySQL protocol', () => {
-    expect(() => parseMysqlUrl('postgres://localhost:5432/leadscout')).toThrow(ConfigurationError);
+  it('parses postgresql URLs with default port', () => {
+    expect(parseMysqlUrl('postgresql://postgres:secret@db.supabase.co/postgres')).toMatchObject({
+      host: 'db.supabase.co',
+      port: 5432,
+      user: 'postgres',
+      password: 'secret',
+      database: 'postgres',
+    });
+  });
+
+  it('rejects an unsupported protocol', () => {
+    expect(() => parseMysqlUrl('mongodb://localhost:27017/leadscout')).toThrow(ConfigurationError);
   });
 
   it('rejects a missing database name', () => {

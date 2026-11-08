@@ -4,7 +4,7 @@ export function createTestEnv(
 ): NodeJS.ProcessEnv {
   return {
     NODE_ENV: 'test',
-    DATABASE_URL: 'mysql://root:secret@localhost:3306/leadscout_test',
+    DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/leadscout_test',
     LOG_TO_FILE: 'false',
     ...overrides,
   };

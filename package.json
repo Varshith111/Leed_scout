@@ -38,24 +38,26 @@
     "scraper",
     "lead-generation",
     "playwright",
-    "mysql"
+    "postgresql",
+    "supabase"
   ],
   "dependencies": {
-    "@types/exceljs": "^0.5.3",
     "commander": "^12.1.0",
     "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "fs-extra": "^11.4.0",
-    "mysql2": "^3.23.1",
+    "pg": "^8.13.1",
     "playwright": "^1.65.0",
     "winston": "^3.19.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/exceljs": "^0.5.3",
     "@types/fs-extra": "^11.0.4",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.1.1",
+    "@types/pg": "^8.11.11",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^30.4.2",

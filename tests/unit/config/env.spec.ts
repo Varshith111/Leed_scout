@@ -53,11 +53,20 @@ describe('parseEnv', () => {
     expect(() => parseEnv(createTestEnv({ DATABASE_URL: undefined }))).toThrow(ConfigurationError);
   });
 
-  it('rejects a non-MySQL DATABASE_URL', () => {
-    const act = (): unknown =>
-      parseEnv(createTestEnv({ DATABASE_URL: 'postgres://localhost:5432/leadscout' }));
+  it('accepts postgresql and postgres DATABASE_URL', () => {
+    const env = parseEnv(
+      createTestEnv({ DATABASE_URL: 'postgresql://postgres:secret@db.supabase.co:5432/postgres' }),
+    );
+    expect(env.DATABASE_URL).toBe(
+      'postgresql://postgres:secret@db.supabase.co:5432/postgres',
+    );
+  });
 
-    expect(act).toThrow(/mysql:\/\//);
+  it('rejects an invalid DATABASE_URL protocol', () => {
+    const act = (): unknown =>
+      parseEnv(createTestEnv({ DATABASE_URL: 'sqlite:///data/test.db' }));
+
+    expect(act).toThrow(/postgresql:\/\/|postgres:\/\//);
   });
 
   it('rejects a non-boolean flag', () => {

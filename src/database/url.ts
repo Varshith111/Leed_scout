@@ -1,29 +1,33 @@
 import { ConfigurationError } from '../utils/errors';
 
 /**
- * MySQL connection string parsing.
+ * Database connection string parsing.
  *
- * The pool is configured with explicit options rather than a raw URL, so the
- * connection string is parsed exactly once, here. Credentials are
- * percent-decoded, which is what makes passwords containing `@`, `:` or `/`
- * (encoded as `%40`, `%3A`, `%2F`) work.
+ * Supports PostgreSQL (Supabase) and MySQL.
+ * Credentials are percent-decoded, which is what makes passwords containing
+ * reserved characters (`@`, `:`, `/`) work.
  */
-export interface MysqlConnectionParameters {
+export interface DatabaseConnectionParameters {
   readonly host: string;
   readonly port: number;
   readonly user: string;
   readonly password: string;
   readonly database: string;
+  readonly ssl: boolean;
+  readonly protocol: string;
 }
 
-const DEFAULT_MYSQL_PORT = 3306;
+export type MysqlConnectionParameters = DatabaseConnectionParameters;
+
+export const DEFAULT_POSTGRES_PORT = 5432;
+export const DEFAULT_MYSQL_PORT = 3306;
 
 /**
- * Parses a `mysql://user:password@host:port/database` connection string.
+ * Parses a `postgresql://` or `postgres://` or `mysql://` connection string.
  *
  * @throws {ConfigurationError} when the URL is malformed or incomplete.
  */
-export function parseMysqlUrl(connectionUrl: string): MysqlConnectionParameters {
+export function parseDatabaseUrl(connectionUrl: string): DatabaseConnectionParameters {
   let parsed: URL;
 
   try {
@@ -32,12 +36,16 @@ export function parseMysqlUrl(connectionUrl: string): MysqlConnectionParameters 
     throw new ConfigurationError('DATABASE_URL is not a valid connection string', {}, error);
   }
 
-  if (parsed.protocol !== 'mysql:') {
+  const validProtocols = ['postgresql:', 'postgres:', 'mysql:'];
+  if (!validProtocols.includes(parsed.protocol)) {
     throw new ConfigurationError(
-      `Unsupported database protocol "${parsed.protocol}" — LeadScout requires MySQL 8+`,
+      `Unsupported database protocol "${parsed.protocol}" — LeadScout supports Supabase (PostgreSQL) and MySQL`,
       { protocol: parsed.protocol },
     );
   }
+
+  const isPostgres = parsed.protocol === 'postgresql:' || parsed.protocol === 'postgres:';
+  const defaultPort = isPostgres ? DEFAULT_POSTGRES_PORT : DEFAULT_MYSQL_PORT;
 
   const database = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
   if (database === '') {
@@ -48,13 +56,29 @@ export function parseMysqlUrl(connectionUrl: string): MysqlConnectionParameters 
     throw new ConfigurationError('DATABASE_URL must include a host');
   }
 
+  const sslParam = parsed.searchParams.get('sslmode');
+  const isSupabase =
+    parsed.hostname.includes('supabase.co') || parsed.hostname.includes('supabase.com');
+  const ssl =
+    isSupabase ||
+    sslParam === 'require' ||
+    sslParam === 'verify-full' ||
+    sslParam === 'verify-ca' ||
+    isPostgres;
+
   return {
     host: decodeURIComponent(parsed.hostname),
-    port: parsed.port === '' ? DEFAULT_MYSQL_PORT : Number(parsed.port),
+    port: parsed.port === '' ? defaultPort : Number(parsed.port),
     user: decodeURIComponent(parsed.username),
     password: decodeURIComponent(parsed.password),
     database,
+    ssl,
+    protocol: parsed.protocol,
   };
+}
+
+export function parseMysqlUrl(connectionUrl: string): DatabaseConnectionParameters {
+  return parseDatabaseUrl(connectionUrl);
 }
 
 /** Returns the database name of a connection string. Used by test safety checks. */

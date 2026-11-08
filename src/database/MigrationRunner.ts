@@ -53,15 +53,13 @@ export interface MigrationOutcome {
 const MIGRATIONS_TABLE = 'schema_migrations';
 
 const CREATE_MIGRATIONS_TABLE = `
-CREATE TABLE IF NOT EXISTS \`${MIGRATIONS_TABLE}\` (
-    \`id\` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-    \`name\` VARCHAR(191) NOT NULL,
-    \`checksum\` CHAR(64) NOT NULL,
-    \`executionTimeMs\` INT UNSIGNED NOT NULL DEFAULT 0,
-    \`executedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    PRIMARY KEY (\`id\`),
-    UNIQUE KEY \`uq_schema_migrations_name\` (\`name\`)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci`;
+CREATE TABLE IF NOT EXISTS "${MIGRATIONS_TABLE}" (
+    "id" SERIAL PRIMARY KEY,
+    "name" VARCHAR(191) NOT NULL UNIQUE,
+    "checksum" CHAR(64) NOT NULL,
+    "executionTimeMs" INT NOT NULL DEFAULT 0,
+    "executedAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`;
 
 export class MigrationRunner {
   private readonly migrationsDirectory: string;

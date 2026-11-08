@@ -127,8 +127,11 @@ export const envSchema = z
       .string({ error: 'DATABASE_URL is required' })
       .min(1, 'DATABASE_URL is required')
       .refine(
-        (value) => value.startsWith('mysql://'),
-        'must be a MySQL connection string starting with "mysql://"',
+        (value) =>
+          value.startsWith('postgresql://') ||
+          value.startsWith('postgres://') ||
+          value.startsWith('mysql://'),
+        'must be a database connection string starting with "postgresql://" or "postgres://"',
       ),
 
     DATABASE_CONNECTION_LIMIT: integerEnv(10, 1, 100),

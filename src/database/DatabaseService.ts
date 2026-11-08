@@ -1,44 +1,40 @@
-import {
-  type Pool,
-  type PoolConnection,
-  type PoolOptions,
-  type ResultSetHeader,
-  type RowDataPacket,
-  createPool,
-} from 'mysql2/promise';
+import pg, { type Pool, type PoolClient, type QueryResult } from 'pg';
 
 import type { DatabaseConfig } from '../config/config';
 import { type ILogger, LogEvent } from '../logger';
 import { AppError, DatabaseError } from '../utils/errors';
 import { sleep } from '../utils/time';
-import { parseMysqlUrl } from './url';
+import { parseDatabaseUrl } from './url';
 
-/**
- * The single gateway between the application and MySQL.
- *
- * Responsibilities: one connection pool per process, prepared-statement
- * execution, transactions, health checks, transparent recovery from dropped
- * connections, query logging, and graceful shutdown.
- *
- * Services own the SQL they need; this class owns *how* SQL reaches the server.
- * Every parameterised call goes through mysql2's `execute()`, i.e. real
- * server-side prepared statements: values are never interpolated into SQL.
- */
+// Setup pg type parsers to match application row shapes
+// Return timestamps/dates as strings so timezone is preserved
+pg.types.setTypeParser(1114, (str: string) => str);
+pg.types.setTypeParser(1184, (str: string) => str);
+pg.types.setTypeParser(1082, (str: string) => str);
+// Preserve decimal as string
+pg.types.setTypeParser(1700, (val: string) => val);
+// Convert bigint IDs (type 20) to numbers
+pg.types.setTypeParser(20, (val: string) => Number(val));
 
 /** Values accepted as prepared-statement parameters. */
 export type SqlParameter = string | number | boolean | Date | Buffer | null;
 
 /** Either the pool (auto-managed connection) or an explicit transaction handle. */
-export type SqlExecutor = Pool | PoolConnection;
+export type SqlExecutor = Pool | PoolClient;
+
+export interface ExecutionResult {
+  readonly affectedRows: number;
+  readonly insertId: number;
+}
+
+/** Kept for compatibility with existing service calls. */
+export type ResultSetHeader = ExecutionResult;
 
 export interface IDatabaseService {
   /** Creates the pool and verifies the server is reachable. Idempotent. */
   initialize(): Promise<void>;
   /**
    * Runs a SELECT and returns typed rows.
-   *
-   * `T` is a plain domain row type: the mysql2 `RowDataPacket` brand is applied
-   * and discarded inside this class so callers stay driver-agnostic.
    */
   query<T extends object>(
     sql: string,
@@ -56,9 +52,9 @@ export interface IDatabaseService {
     sql: string,
     parameters?: readonly SqlParameter[],
     executor?: SqlExecutor,
-  ): Promise<ResultSetHeader>;
+  ): Promise<ExecutionResult>;
   /** Runs `work` inside a transaction, committing on success and rolling back on error. */
-  transaction<T>(work: (connection: PoolConnection) => Promise<T>): Promise<T>;
+  transaction<T>(work: (connection: PoolClient) => Promise<T>): Promise<T>;
   /** `true` when a `SELECT 1` round-trip succeeds. */
   healthCheck(): Promise<boolean>;
   /** Closes the pool. Safe to call when never initialised. */
@@ -67,14 +63,11 @@ export interface IDatabaseService {
   getPool(): Pool;
   /**
    * Executes a statement without parameters (DDL).
-   *
-   * MySQL cannot prepare every DDL statement, so migrations use this path. It
-   * accepts file-sourced SQL only and must never receive user input.
    */
   executeDdl(sql: string, executor?: SqlExecutor): Promise<void>;
 }
 
-/** MySQL/driver error codes that a retry can plausibly fix. */
+/** Error codes that a retry can plausibly fix. */
 const TRANSIENT_ERROR_CODES = new Set([
   'PROTOCOL_CONNECTION_LOST',
   'ECONNRESET',
@@ -85,29 +78,31 @@ const TRANSIENT_ERROR_CODES = new Set([
   'ER_LOCK_WAIT_TIMEOUT',
   'ER_CON_COUNT_ERROR',
   'PROTOCOL_SEQUENCE_TIMEOUT',
+  // PostgreSQL error codes
+  '40001', // serialization_failure / deadlock
+  '40P01', // deadlock_detected
+  '57P01', // admin_shutdown
+  '08000', // connection_exception
+  '08003', // connection_does_not_exist
+  '08006', // connection_failure
 ]);
 
-/**
- * Schema objects that already exist.
- *
- * MySQL performs an implicit commit per DDL statement, so a migration that
- * fails half way cannot be rolled back. The migration runner uses this to make
- * a re-run converge: statements whose object is already present are treated as
- * satisfied instead of fatal.
- */
+/** Schema objects that already exist. */
 const OBJECT_EXISTS_ERROR_CODES = new Set([
   'ER_TABLE_EXISTS_ERROR',
   'ER_DUP_KEYNAME',
   'ER_DUP_FIELDNAME',
   'ER_FK_DUP_NAME',
   'ER_DUP_INDEX',
+  // PostgreSQL error codes
+  '42P07', // duplicate_table
+  '42710', // duplicate_object
+  '42701', // duplicate_column
+  '23505', // unique_violation
 ]);
 
 /**
  * Reads the driver error code, following the `cause` chain.
- *
- * Application errors carry their own `code` (`DATABASE_ERROR`, ...), so those
- * are stepped over: the interesting value is always the MySQL code underneath.
  */
 export function findErrorCode(error: unknown): string | undefined {
   let current: unknown = error;
@@ -137,6 +132,34 @@ export function isObjectExistsError(error: unknown): boolean {
   return code !== undefined && OBJECT_EXISTS_ERROR_CODES.has(code);
 }
 
+/**
+ * Formats MySQL-style queries (backticks and `?` placeholders) into
+ * PostgreSQL-compatible queries with double quotes and `$1, $2, ...`.
+ */
+export function formatPostgresSql(sql: string): string {
+  let paramIndex = 1;
+  let inSingleQuote = false;
+  let result = '';
+
+  for (let i = 0; i < sql.length; i++) {
+    const char = sql[i];
+    if (char === "'") {
+      if (sql[i - 1] !== '\\') {
+        inSingleQuote = !inSingleQuote;
+      }
+      result += char;
+    } else if (char === '`') {
+      result += inSingleQuote ? '`' : '"';
+    } else if (char === '?' && !inSingleQuote) {
+      result += `$${String(paramIndex++)}`;
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
+}
+
 export class DatabaseService implements IDatabaseService {
   private pool: Pool | undefined;
   private initialized = false;
@@ -154,19 +177,22 @@ export class DatabaseService implements IDatabaseService {
     const pool = this.ensurePool();
 
     try {
-      const connection = await pool.getConnection();
-      connection.release();
+      const client = await pool.connect();
+      client.release();
     } catch (error) {
+      const parsed = parseDatabaseUrl(this.config.url);
       throw new DatabaseError(
-        'Could not connect to MySQL. Check DATABASE_URL and that the server is running.',
-        { host: parseMysqlUrl(this.config.url).host },
+        'Could not connect to Supabase/PostgreSQL. Check DATABASE_URL and network connectivity.',
+        { host: parsed.host },
         error,
       );
     }
 
     this.initialized = true;
-    this.logger.event(LogEvent.DATABASE_CONNECTED, 'MySQL connection pool ready', {
-      database: parseMysqlUrl(this.config.url).database,
+    const parsed = parseDatabaseUrl(this.config.url);
+    this.logger.event(LogEvent.DATABASE_CONNECTED, 'Database connection pool ready', {
+      database: parsed.database,
+      host: parsed.host,
       connectionLimit: this.config.connectionLimit,
     });
   }
@@ -180,10 +206,11 @@ export class DatabaseService implements IDatabaseService {
     parameters: readonly SqlParameter[] = [],
     executor?: SqlExecutor,
   ): Promise<T[]> {
+    const formattedSql = formatPostgresSql(sql);
     return this.withRetry(sql, async () => {
       const target = executor ?? this.ensurePool();
-      const [rows] = await target.execute<RowDataPacket[]>(sql, [...parameters]);
-      return rows as unknown as T[];
+      const result: QueryResult = await target.query(formattedSql, [...parameters]);
+      return result.rows as unknown as T[];
     });
   }
 
@@ -200,20 +227,35 @@ export class DatabaseService implements IDatabaseService {
     sql: string,
     parameters: readonly SqlParameter[] = [],
     executor?: SqlExecutor,
-  ): Promise<ResultSetHeader> {
+  ): Promise<ExecutionResult> {
+    let formattedSql = formatPostgresSql(sql);
+
+    // If an INSERT statement does not have RETURNING, automatically append RETURNING "id"
+    const isInsert = /^\s*INSERT\s+INTO\b/i.test(formattedSql);
+    const hasReturning = /\bRETURNING\b/i.test(formattedSql);
+    if (isInsert && !hasReturning) {
+      formattedSql = `${formattedSql} RETURNING "id"`;
+    }
+
     return this.withRetry(sql, async () => {
       const target = executor ?? this.ensurePool();
-      const [result] = await target.execute<ResultSetHeader>(sql, [...parameters]);
-      return result;
+      const result: QueryResult = await target.query(formattedSql, [...parameters]);
+      const row = result.rows[0] as { id?: unknown } | undefined;
+      const insertId = row?.id !== undefined ? Number(row.id) : 0;
+      return {
+        affectedRows: result.rowCount ?? 0,
+        insertId,
+      };
     });
   }
 
   public async executeDdl(sql: string, executor?: SqlExecutor): Promise<void> {
     const target = executor ?? this.ensurePool();
+    const formattedSql = formatPostgresSql(sql);
     const startedAt = Date.now();
 
     try {
-      await target.query(sql);
+      await target.query(formattedSql);
       this.traceQuery(sql, Date.now() - startedAt);
     } catch (error) {
       throw new DatabaseError('DDL statement failed', { sql: summarize(sql) }, error);
@@ -221,29 +263,26 @@ export class DatabaseService implements IDatabaseService {
   }
 
   /**
-   * Runs `work` in a transaction on a dedicated connection.
-   *
-   * The connection is always returned to the pool, and a failed rollback never
-   * masks the original error.
+   * Runs `work` in a transaction on a dedicated client connection.
    */
-  public async transaction<T>(work: (connection: PoolConnection) => Promise<T>): Promise<T> {
-    const connection = await this.ensurePool().getConnection();
+  public async transaction<T>(work: (connection: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.ensurePool().connect();
 
     try {
-      await connection.beginTransaction();
+      await client.query('BEGIN');
 
       try {
-        const result = await work(connection);
-        await connection.commit();
+        const result = await work(client);
+        await client.query('COMMIT');
         return result;
       } catch (error) {
-        await this.rollbackQuietly(connection);
+        await client.query('ROLLBACK').catch(() => undefined);
         throw error instanceof DatabaseError
           ? error
           : new DatabaseError('Transaction rolled back', {}, error);
       }
     } finally {
-      connection.release();
+      client.release();
     }
   }
 
@@ -269,17 +308,16 @@ export class DatabaseService implements IDatabaseService {
     this.initialized = false;
 
     await pool.end();
-    this.logger.event(LogEvent.DATABASE_DISCONNECTED, 'MySQL connection pool closed');
+    this.logger.event(LogEvent.DATABASE_DISCONNECTED, 'Database connection pool closed');
   }
 
-  /** Lazily creates the single pool for this process. */
   private ensurePool(): Pool {
-    this.pool ??= createPool(this.buildPoolOptions());
+    this.pool ??= new pg.Pool(this.buildPoolOptions());
     return this.pool;
   }
 
-  private buildPoolOptions(): PoolOptions {
-    const connection = parseMysqlUrl(this.config.url);
+  private buildPoolOptions(): pg.PoolConfig {
+    const connection = parseDatabaseUrl(this.config.url);
 
     return {
       host: connection.host,
@@ -287,37 +325,18 @@ export class DatabaseService implements IDatabaseService {
       user: connection.user,
       password: connection.password,
       database: connection.database,
-      waitForConnections: true,
-      connectionLimit: this.config.connectionLimit,
-      queueLimit: this.config.queueLimit,
-      connectTimeout: this.config.connectTimeoutMs,
-      idleTimeout: this.config.idleTimeoutMs,
-      maxIdle: this.config.connectionLimit,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 10_000,
-      // Timestamps are read back as strings and converted by the model helpers,
-      // which keeps stored values independent of the process timezone.
-      dateStrings: true,
-      // Guards against accidental multi-statement injection.
-      multipleStatements: false,
-      timezone: 'Z',
-      charset: 'utf8mb4',
+      max: this.config.connectionLimit,
+      connectionTimeoutMillis: this.config.connectTimeoutMs,
+      idleTimeoutMillis: this.config.idleTimeoutMs,
+      ssl: connection.ssl ? { rejectUnauthorized: false } : undefined,
     };
   }
 
-  /**
-   * Executes an operation, retrying transient connection failures.
-   *
-   * mysql2 opens a fresh connection on the next call after one is dropped, so a
-   * retry is all that "automatic reconnect" needs to mean here.
-   */
   private async withRetry<T>(sql: string, operation: () => Promise<T>): Promise<T> {
-    const attempts = this.config.retryAttempts + 1;
     let lastError: unknown;
+    const startedAt = Date.now();
 
-    for (let attempt = 1; attempt <= attempts; attempt += 1) {
-      const startedAt = Date.now();
-
+    for (let attempt = 0; attempt <= this.config.retryAttempts; attempt += 1) {
       try {
         const result = await operation();
         this.traceQuery(sql, Date.now() - startedAt);
@@ -325,56 +344,52 @@ export class DatabaseService implements IDatabaseService {
       } catch (error) {
         lastError = error;
 
-        if (!isTransientDatabaseError(error) || attempt === attempts) {
+        if (attempt >= this.config.retryAttempts || !isTransientDatabaseError(error)) {
           break;
         }
 
-        const delay = this.config.retryDelayMs * attempt;
-        this.logger.event(LogEvent.RETRY, 'Retrying database operation', {
-          attempt,
-          attempts,
+        const delay = this.config.retryDelayMs * 2 ** attempt;
+        this.logger.warn('Transient database error, retrying', {
+          attempt: attempt + 1,
+          maxAttempts: this.config.retryAttempts,
           delayMs: delay,
-          code: findErrorCode(error),
-          sql: summarize(sql),
+          error: error instanceof Error ? error.message : String(error),
         });
+
         await sleep(delay);
       }
     }
 
     throw new DatabaseError(
-      `Query failed: ${lastError instanceof Error ? lastError.message : 'unknown error'}`,
-      { sql: summarize(sql), code: findErrorCode(lastError) },
+      'Database query failed',
+      {
+        sql: summarize(sql),
+        code: findErrorCode(lastError),
+      },
       lastError,
     );
   }
 
   private traceQuery(sql: string, durationMs: number): void {
     if (durationMs >= this.config.slowQueryMs) {
-      this.logger.warn('Slow query', { durationMs, sql: summarize(sql) });
+      this.logger.warn('Slow database query', {
+        sql: summarize(sql),
+        durationMs,
+        thresholdMs: this.config.slowQueryMs,
+      });
       return;
     }
 
     if (this.config.logQueries) {
-      this.logger.debug('SQL', { durationMs, sql: summarize(sql) });
-    }
-  }
-
-  private async rollbackQuietly(connection: PoolConnection): Promise<void> {
-    try {
-      await connection.rollback();
-    } catch (rollbackError) {
-      this.logger.error('Transaction rollback failed', rollbackError);
+      this.logger.debug('SQL query executed', {
+        sql: summarize(sql),
+        durationMs,
+      });
     }
   }
 }
 
-const MAX_LOGGED_SQL_LENGTH = 300;
-
-/** Collapses whitespace and truncates SQL so log lines stay readable. */
 function summarize(sql: string): string {
-  const normalized = sql.replace(/\s+/g, ' ').trim();
-
-  return normalized.length > MAX_LOGGED_SQL_LENGTH
-    ? `${normalized.slice(0, MAX_LOGGED_SQL_LENGTH)}...`
-    : normalized;
+  const flattened = sql.replace(/\s+/g, ' ').trim();
+  return flattened.length > 200 ? `${flattened.slice(0, 197)}...` : flattened;
 }
