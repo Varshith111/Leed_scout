@@ -154,15 +154,16 @@ export class ScrapeService {
     const result = await this.database.execute(
       `INSERT INTO \`RawBusinesses\`
          (\`jobId\`, \`provider\`, \`providerBusinessId\`, \`name\`, \`category\`,
-          \`phone\`, \`website\`, \`address\`, \`city\`, \`state\`, \`country\`,
+          \`email\`, \`phone\`, \`website\`, \`address\`, \`city\`, \`state\`, \`country\`,
           \`rating\`, \`reviewCount\`, \`latitude\`, \`longitude\`, \`googleMapsUrl\`, \`rawData\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.jobId,
         input.provider,
         input.providerBusinessId ?? null,
         input.name,
         input.category ?? null,
+        input.email ?? null,
         input.phone ?? null,
         input.website ?? null,
         input.address ?? null,

@@ -168,15 +168,17 @@ export class GoogleMapsProvider extends BaseProvider {
       throw new Error('Business name not found on detail page');
     }
 
-    const [category, address, phone, website, ratingText, reviewText] = await Promise.all([
+    const [category, address, phone, website, ratingText, reviewText, mailto] = await Promise.all([
       this.readText(page, S.DETAIL_CATEGORY),
       this.readAttribute(page, S.DETAIL_ADDRESS, 'aria-label'),
       this.readAttribute(page, S.DETAIL_PHONE, 'data-item-id'),
       this.readAttribute(page, S.DETAIL_WEBSITE, 'href'),
       this.readText(page, S.DETAIL_RATING),
       this.readAttribute(page, S.DETAIL_REVIEW_COUNT, 'aria-label'),
+      this.readAttribute(page, 'a[href^="mailto:"]', 'href'),
     ]);
 
+    const email = mailto ? mailto.replace('mailto:', '').split('?')[0]?.trim() : undefined;
     const phoneClean = phone?.replace('phone:tel:', '').trim() ?? undefined;
     const rating = ratingText !== null ? parseFloat(ratingText) : undefined;
     const reviewCount = reviewText !== null ? this.parseReviewCount(reviewText) : undefined;
@@ -198,6 +200,7 @@ export class GoogleMapsProvider extends BaseProvider {
       providerBusinessId: placeId,
       name: name.trim(),
       category: category?.trim() ?? params.category,
+      email,
       phone: phoneClean,
       website: website ?? undefined,
       address: address?.trim() ?? undefined,

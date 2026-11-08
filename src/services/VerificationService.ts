@@ -116,6 +116,7 @@ export class VerificationService {
   private async verifyOne(raw: RawBusinessRow): Promise<{ hasWebsite: boolean; jobId: number }> {
     let hasWebsite = false;
     let confirmedWebsiteUrl: string | undefined;
+    let email = raw.email ?? undefined;
 
     // Stage 1: check the URL the scraper already found
     if (raw.website !== null && raw.website.trim() !== '') {
@@ -137,6 +138,10 @@ export class VerificationService {
     if (!hasWebsite && raw.name !== '') {
       const city = raw.city ?? '';
       const searchResult = await this.searchVerifier.findWebsite(raw.name, city);
+      if (searchResult.email && !email) {
+        email = searchResult.email;
+      }
+
       if (searchResult.websiteFound && searchResult.websiteUrl !== undefined) {
         // HTTP-verify the URL found by search before trusting it
         const check = await this.websiteVerifier.check(searchResult.websiteUrl);
@@ -149,6 +154,11 @@ export class VerificationService {
           });
         }
       }
+    }
+
+    // Stage 3: Dedicated email / Gmail search if still missing
+    if (!email && raw.name !== '') {
+      email = await this.searchVerifier.findEmail(raw.name, raw.city ?? '');
     }
 
     if (!hasWebsite) {
@@ -165,6 +175,7 @@ export class VerificationService {
       phone: raw.phone ?? '',
       provider: raw.provider,
       category: raw.category ?? undefined,
+      email,
       website: confirmedWebsiteUrl,
       city: raw.city ?? undefined,
       state: raw.state ?? undefined,
@@ -209,11 +220,12 @@ export class VerificationService {
     const result = await this.database.execute(
       `INSERT INTO "VerifiedBusinesses"
          ("rawBusinessId", "name", "address", "phone", "provider",
-          "category", "website", "city", "state", "country",
+          "category", "email", "website", "city", "state", "country",
           "rating", "reviewCount", "latitude", "longitude", "googleMapsUrl",
           "verified", "hasWebsite")
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT ("name", "address", "phone") DO UPDATE SET
+         "email"         = COALESCE(EXCLUDED."email", "VerifiedBusinesses"."email"),
          "website"       = COALESCE(EXCLUDED."website", "VerifiedBusinesses"."website"),
          "verified"      = EXCLUDED."verified",
          "hasWebsite"    = EXCLUDED."hasWebsite",
@@ -228,6 +240,7 @@ export class VerificationService {
         input.phone,
         input.provider,
         input.category ?? null,
+        input.email ?? null,
         input.website ?? null,
         input.city ?? null,
         input.state ?? null,

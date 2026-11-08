@@ -47,6 +47,7 @@ export interface RawBusinessRow {
   readonly providerBusinessId: string | null;
   readonly name: string;
   readonly category: string | null;
+  readonly email: string | null;
   readonly phone: string | null;
   readonly website: string | null;
   readonly address: string | null;
@@ -68,6 +69,7 @@ export interface VerifiedBusinessRow {
   readonly rawBusinessId: number;
   readonly name: string;
   readonly category: string | null;
+  readonly email: string | null;
   readonly phone: string;
   readonly website: string | null;
   readonly address: string;

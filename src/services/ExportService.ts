@@ -34,6 +34,7 @@ export interface ExportResult {
 const COLUMNS = [
   { key: 'name',          header: 'Business Name' },
   { key: 'category',      header: 'Category' },
+  { key: 'email',         header: 'Email / Gmail' },
   { key: 'phone',         header: 'Phone' },
   { key: 'address',       header: 'Address' },
   { key: 'city',          header: 'City' },
@@ -222,6 +223,7 @@ export class ExportService {
     switch (key) {
       case 'name':          return row.name;
       case 'category':      return row.category;
+      case 'email':         return row.email;
       case 'phone':         return row.phone;
       case 'address':       return row.address;
       case 'city':          return row.city;
@@ -245,6 +247,7 @@ export class ExportService {
     const widths: Record<ColumnKey, number> = {
       name: 35,
       category: 20,
+      email: 28,
       phone: 18,
       address: 40,
       city: 18,

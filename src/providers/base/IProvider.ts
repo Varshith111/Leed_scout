@@ -5,6 +5,7 @@ export interface BusinessData {
   readonly providerBusinessId?: string | undefined;
   readonly name: string;
   readonly category?: string | undefined;
+  readonly email?: string | undefined;
   readonly phone?: string | undefined;
   readonly website?: string | undefined;
   readonly address?: string | undefined;

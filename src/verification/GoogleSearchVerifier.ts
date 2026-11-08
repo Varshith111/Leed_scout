@@ -1,10 +1,12 @@
 import type { VerificationConfig } from '../config/config';
 import type { ILogger } from '../logger';
 import { normaliseUrl, isPlausibleDomain } from './DomainValidator';
+import { extractBestEmail } from '../utils/email';
 
 export interface SearchVerificationResult {
   readonly websiteFound: boolean;
   readonly websiteUrl?: string | undefined;
+  readonly email?: string | undefined;
 }
 
 export class GoogleSearchVerifier {
@@ -49,14 +51,15 @@ export class GoogleSearchVerifier {
       }
 
       const html = await response.text();
+      const email = extractBestEmail(html);
       const websiteUrl = this.extractFirstOfficialUrl(html);
 
       if (websiteUrl !== undefined) {
-        this.logger.debug('Google search found website', { name, city, websiteUrl });
-        return { websiteFound: true, websiteUrl };
+        this.logger.debug('Google search found website', { name, city, websiteUrl, email });
+        return { websiteFound: true, websiteUrl, email };
       }
 
-      return { websiteFound: false };
+      return { websiteFound: false, email };
     } catch (error) {
       this.logger.debug('Google search verifier failed', {
         name,
@@ -66,6 +69,30 @@ export class GoogleSearchVerifier {
       return { websiteFound: false };
     } finally {
       clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Specifically searches for email / Gmail contact for a business without a website.
+   */
+  public async findEmail(name: string, city: string): Promise<string | undefined> {
+    const query = encodeURIComponent(`"${name}" "${city}" "gmail.com" OR "email" OR "contact"`);
+    const url = `https://www.google.com/search?q=${query}&num=5`;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': this.config.userAgent,
+          Accept: 'text/html',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+
+      if (!response.ok) return undefined;
+      const html = await response.text();
+      return extractBestEmail(html);
+    } catch {
+      return undefined;
     }
   }
 

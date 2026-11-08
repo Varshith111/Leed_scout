@@ -38,6 +38,7 @@ export interface CreateRawBusinessInput {
   readonly providerBusinessId?: string | undefined;
   readonly name: string;
   readonly category?: string | undefined;
+  readonly email?: string | undefined;
   readonly phone?: string | undefined;
   readonly website?: string | undefined;
   readonly address?: string | undefined;
@@ -69,6 +70,7 @@ export interface UpsertVerifiedBusinessInput {
   readonly phone: string;
   readonly provider: ProviderName;
   readonly category?: string | undefined;
+  readonly email?: string | undefined;
   readonly website?: string | undefined;
   readonly city?: string | undefined;
   readonly state?: string | undefined;

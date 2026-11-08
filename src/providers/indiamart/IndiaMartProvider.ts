@@ -12,6 +12,7 @@ interface IndiaMartCard {
   readonly name: string;
   readonly rating?: number | undefined;
   readonly address?: string | undefined;
+  readonly email?: string | undefined;
   readonly phone?: string | undefined;
   readonly website?: string | undefined;
 }
@@ -75,6 +76,7 @@ export class IndiaMartProvider extends BaseProvider {
             country: params.country ?? 'India',
             rating: card.rating,
             address: card.address,
+            email: card.email,
             phone: card.phone,
             website: card.website,
           };
@@ -142,10 +144,17 @@ export class IndiaMartProvider extends BaseProvider {
             phone = phoneMatch?.[1] ? phoneMatch[1].trim() : undefined;
           }
 
+          const mailtoEl = el.querySelector('a[href^="mailto:"]');
+          let email = mailtoEl?.getAttribute('href')?.replace(/^mailto:/i, '').split('?')[0]?.trim();
+          if (!email && el.textContent) {
+            const emailMatch = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.exec(el.textContent);
+            email = emailMatch?.[0];
+          }
+
           const websiteEl = el.querySelector('a[href*="http"]:not([href*="indiamart.com"])');
           const website = websiteEl?.getAttribute('href') ?? undefined;
 
-          results.push({ name, rating, address, phone, website });
+          results.push({ name, rating, address, email, phone, website });
         }
         return results;
       },

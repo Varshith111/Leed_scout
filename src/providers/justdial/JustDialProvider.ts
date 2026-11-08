@@ -13,6 +13,7 @@ interface JustDialCard {
   readonly rating?: number | undefined;
   readonly reviewCount?: number | undefined;
   readonly address?: string | undefined;
+  readonly email?: string | undefined;
   readonly phone?: string | undefined;
   readonly website?: string | undefined;
 }
@@ -77,6 +78,7 @@ export class JustDialProvider extends BaseProvider {
             rating: card.rating,
             reviewCount: card.reviewCount,
             address: card.address,
+            email: card.email,
             phone: card.phone,
             website: card.website,
           };
@@ -148,10 +150,17 @@ export class JustDialProvider extends BaseProvider {
             phone = phoneMatch?.[1] ? phoneMatch[1].trim() : undefined;
           }
 
+          const mailtoEl = el.querySelector('a[href^="mailto:"]');
+          let email = mailtoEl?.getAttribute('href')?.replace(/^mailto:/i, '').split('?')[0]?.trim();
+          if (!email && el.textContent) {
+            const emailMatch = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.exec(el.textContent);
+            email = emailMatch?.[0];
+          }
+
           const websiteEl = el.querySelector('a[href*="http"]:not([href*="justdial.com"])');
           const website = websiteEl?.getAttribute('href') ?? undefined;
 
-          results.push({ name, rating, reviewCount, address, phone, website });
+          results.push({ name, rating, reviewCount, address, email, phone, website });
         }
         return results;
       },
