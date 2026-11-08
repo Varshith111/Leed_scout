@@ -43,3 +43,4 @@ describe('extractBestEmail', () => {
     expect(extractBestEmail(undefined)).toBeUndefined();
   });
 });
+

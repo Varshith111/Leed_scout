@@ -1,14 +1,22 @@
 import { Command } from 'commander';
 import type { AppContext } from '../bootstrap';
 import { VerificationService } from '../../services/VerificationService';
+import { ExportService } from '../../services/ExportService';
+import { ExportFormat } from '../../models/enums';
 import { printSuccess, printKeyValue, printLine, printWarning } from '../output';
 import { ProgressBar } from '../progress';
 
+interface VerifyCommandOptions {
+  job?: string;
+  export?: boolean;
+}
+
 export function makeVerifyCommand(context: AppContext): Command {
   return new Command('verify')
-    .description('Verify whether scraped businesses have an official website')
+    .description('Verify whether scraped businesses have an official website and auto-export qualified leads')
     .option('--job <jobId>', 'Only verify businesses from this job')
-    .action(async (opts: Record<string, string>) => {
+    .option('--no-export', 'Skip automatic file export after verification')
+    .action(async (opts: VerifyCommandOptions) => {
       const jobId = opts.job !== undefined ? parseInt(opts.job, 10) : undefined;
 
       const controller = new AbortController();
@@ -58,6 +66,34 @@ export function makeVerifyCommand(context: AppContext): Command {
         printKeyValue('No website', String(summary.withoutWebsite));
         if (summary.failed > 0) {
           printKeyValue('Failed', String(summary.failed));
+        }
+
+        if (opts.export !== false && summary.withoutWebsite > 0) {
+          printLine();
+          printWarning('Exporting qualified leads (businesses with no website)...');
+          const exporter = new ExportService(context.database, context.logger);
+
+          const excelResult = await exporter.run({
+            format: ExportFormat.EXCEL,
+            outputDir: context.config.paths.output,
+            jobId,
+          });
+          const csvResult = await exporter.run({
+            format: ExportFormat.CSV,
+            outputDir: context.config.paths.output,
+            jobId,
+          });
+          const jsonResult = await exporter.run({
+            format: ExportFormat.JSON,
+            outputDir: context.config.paths.output,
+            jobId,
+          });
+
+          printLine();
+          printSuccess(`Export complete! Saved ${String(summary.withoutWebsite)} leads:`);
+          printKeyValue('Excel File (.xlsx)', excelResult.filePath);
+          printKeyValue('CSV File (.csv)', csvResult.filePath);
+          printKeyValue('JSON File (.json)', jsonResult.filePath);
         }
       } catch (error) {
         bar.clear();

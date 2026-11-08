@@ -11,3 +11,4 @@ ALTER TABLE "VerifiedBusinesses"
     ADD COLUMN IF NOT EXISTS "email" VARCHAR(255) NULL;
 
 CREATE INDEX IF NOT EXISTS "idx_VerifiedBusinesses_email" ON "VerifiedBusinesses" ("email");
+
