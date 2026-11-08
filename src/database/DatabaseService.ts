@@ -182,7 +182,7 @@ export class DatabaseService implements IDatabaseService {
     } catch (error) {
       const parsed = parseDatabaseUrl(this.config.url);
       throw new DatabaseError(
-        'Could not connect to Supabase/PostgreSQL. Check DATABASE_URL and network connectivity.',
+        `Could not connect to Supabase/PostgreSQL: ${error instanceof Error ? error.message : String(error)}`,
         { host: parsed.host },
         error,
       );
